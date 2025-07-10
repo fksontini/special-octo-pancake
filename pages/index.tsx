@@ -9,6 +9,8 @@ export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [jsonText, setJsonText] = useState('{"NomProjet":"Demo"}');
   const [populateStatus, setPopulateStatus] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleGenerate = async () => {
     setStatus("Génération en cours...");
@@ -36,6 +38,8 @@ export default function Home() {
       return;
     }
     setPopulateStatus("Envoi en cours...");
+    setIsUploading(true);
+    setUploadProgress(0);
     try {
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -50,7 +54,14 @@ export default function Home() {
       const response = await axios.post(
         "/api/populate",
         { pptxBase64: base64, values },
-        { responseType: "blob" }
+        {
+          responseType: "blob",
+          onUploadProgress: (event) => {
+            if (event.total) {
+              setUploadProgress(Math.round((event.loaded * 100) / event.total));
+            }
+          },
+        }
       );
       const blob = new Blob([response.data], {
         type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -63,8 +74,10 @@ export default function Home() {
       link.click();
       link.remove();
       setPopulateStatus("Fichier modifié téléchargé !");
+      setIsUploading(false);
     } catch (err: any) {
       setPopulateStatus("Erreur: " + err.message);
+      setIsUploading(false);
     }
   };
 
@@ -106,12 +119,35 @@ export default function Home() {
         Envoyer
       </button>
       <p>{populateStatus}</p>
+      {isUploading && (
+        <div style={{ display: "flex", alignItems: "center", marginTop: "1rem" }}>
+          <div
+            style={{
+              border: "4px solid rgba(0,0,0,0.1)",
+              width: 24,
+              height: 24,
+              borderRadius: "50%",
+              borderTopColor: "#333",
+              animation: "spin 1s linear infinite",
+              marginRight: "0.5rem",
+            }}
+          />
+          <progress value={uploadProgress} max={100} style={{ width: "100%" }} />
+        </div>
+      )}
 
       <div style={{ marginTop: "2rem" }}>
         <a href="/api-docs.html" target="_blank" rel="noopener">
           📑 Documentation API
         </a>
       </div>
+      <style jsx>{`
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
     </div>
   );
 }
