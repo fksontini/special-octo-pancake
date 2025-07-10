@@ -24,14 +24,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const slideRegex = /^ppt\/slides\/slide\d+\.xml$/;
     const files = Object.keys(zip.files).filter((name) => slideRegex.test(name));
 
+    const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const crossTagRegex = (s: string) =>
+      new RegExp(
+        s
+          .split("")
+          .map((ch) => `${escapeRegExp(ch)}(?:<[^>]+>)*`)
+          .join(""),
+        "g"
+      );
+
     for (const name of files) {
       const file = zip.file(name);
       if (!file) continue;
       let content = await file.async("string");
       for (const [key, value] of Object.entries(values)) {
         const placeholder = `<<[${key}]>>`;
-        const regex = new RegExp(placeholder, "g");
-        content = content.replace(regex, value);
+        const encoded = placeholder.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const regexes = [
+          crossTagRegex(placeholder),
+          crossTagRegex(encoded),
+          crossTagRegex(`'${placeholder}'`),
+          crossTagRegex(`'${encoded}'`),
+        ];
+        for (const r of regexes) {
+          content = content.replace(r, value);
+        }
       }
       zip.file(name, content);
     }
