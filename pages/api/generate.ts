@@ -15,3 +15,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
   res.send(buffer);
 }
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "100mb",
+    },
+  },
+};
