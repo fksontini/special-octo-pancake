@@ -9,7 +9,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   slide.addText(`Bonjour ${Nom}`, { x: 1, y: 1, fontSize: 18 });
   slide.addText(`Votre RDV est prévu pour le ${Date}`, { x: 1, y: 2, fontSize: 14 });
 
-  const buffer = await pptx.write("nodebuffer");
+  const buffer = (await pptx.write({ outputType: "nodebuffer" })) as Buffer;
 
   res.setHeader("Content-Disposition", "attachment; filename=generated.pptx");
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
