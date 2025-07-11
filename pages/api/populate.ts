@@ -24,16 +24,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const slideRegex = /^ppt\/slides\/slide\d+\.xml$/;
     const files = Object.keys(zip.files).filter((name) => slideRegex.test(name));
 
-    const escapeRegExp = (s: string) =>
-      s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const crossTagRegex = (s: string) =>
-      new RegExp(
-        s
-          .split("")
-          .map((ch) => `${escapeRegExp(ch)}(?:<[^>]+>)*`)
-          .join(""),
-        "g"
-      );
     const xmlEscape = (s: string) =>
       s
         .replace(/&/g, "&amp;")
@@ -42,6 +32,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .replace(/\"/g, "&quot;")
         .replace(/'/g, "&apos;");
 
+    const replaceInTextTags = (
+      xml: string,
+      target: string,
+      replacement: string
+    ) =>
+      xml.replace(/(<a:t[^>]*>)([\s\S]*?)(<\/a:t>)/g, (match, open, text, close) => {
+        const replaced = text.split(target).join(replacement);
+        return open + replaced + close;
+      });
+
     for (const name of files) {
       const file = zip.file(name);
       if (!file) continue;
@@ -49,15 +49,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       for (const [key, value] of Object.entries(values)) {
         const placeholder = `<<[${key}]>>`;
         const encoded = placeholder.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        const regexes = [
-          crossTagRegex(placeholder),
-          crossTagRegex(encoded),
-          crossTagRegex(`'${placeholder}'`),
-          crossTagRegex(`'${encoded}'`),
-        ];
-        for (const r of regexes) {
-          content = content.replace(r, xmlEscape(value));
-        }
+        const escaped = xmlEscape(value);
+        content = replaceInTextTags(content, placeholder, escaped);
+        content = replaceInTextTags(content, encoded, escaped);
+        content = replaceInTextTags(content, `'${placeholder}'`, escaped);
+        content = replaceInTextTags(content, `'${encoded}'`, escaped);
       }
       zip.file(name, content);
     }
