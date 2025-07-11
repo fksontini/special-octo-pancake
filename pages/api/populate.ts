@@ -39,9 +39,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       target: string,
       replacement: string
     ) => {
-      const pattern = escapeRegex(target)
+      const pattern = target
         .split("")
-        .map((c) => `${c}(?:<\/a:t>\s*<a:t[^>]*>)?`)
+        .map((c) => `${escapeRegex(c)}(?:<\/a:t>\s*<a:t[^>]*>)?`)
         .join("");
       return xml.replace(new RegExp(pattern, "g"), replacement);
     };
