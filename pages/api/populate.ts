@@ -32,15 +32,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .replace(/\"/g, "&quot;")
         .replace(/'/g, "&apos;");
 
-    const replaceInTextTags = (
+    const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    const replaceAcrossTags = (
       xml: string,
       target: string,
       replacement: string
-    ) =>
-      xml.replace(/(<a:t[^>]*>)([\s\S]*?)(<\/a:t>)/g, (match, open, text, close) => {
-        const replaced = text.split(target).join(replacement);
-        return open + replaced + close;
-      });
+    ) => {
+      const pattern = escapeRegex(target)
+        .split("")
+        .map((c) => `${c}(?:<\/a:t>\s*<a:t[^>]*>)?`)
+        .join("");
+      return xml.replace(new RegExp(pattern, "g"), replacement);
+    };
 
     for (const name of files) {
       const file = zip.file(name);
@@ -50,10 +54,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const placeholder = `<<[${key}]>>`;
         const encoded = placeholder.replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const escaped = xmlEscape(value);
-        content = replaceInTextTags(content, placeholder, escaped);
-        content = replaceInTextTags(content, encoded, escaped);
-        content = replaceInTextTags(content, `'${placeholder}'`, escaped);
-        content = replaceInTextTags(content, `'${encoded}'`, escaped);
+        content = replaceAcrossTags(content, placeholder, escaped);
+        content = replaceAcrossTags(content, encoded, escaped);
+        content = replaceAcrossTags(content, `'${placeholder}'`, escaped);
+        content = replaceAcrossTags(content, `'${encoded}'`, escaped);
       }
       zip.file(name, content);
     }
