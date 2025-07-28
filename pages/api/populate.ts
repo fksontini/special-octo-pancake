@@ -48,7 +48,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const matched = regex.test(xml);
       if (!matched) return { xml, matched };
       regex.lastIndex = 0;
-      return { xml: xml.replace(regex, replacement), matched };
+      return {
+        xml: xml.replace(regex, (m) => {
+          const newlines = m.match(/[\r\n]+/g)?.join("") || "";
+          return replacement + newlines;
+        }),
+        matched,
+      };
     };
 
     const foundKeys = new Set<string>();
