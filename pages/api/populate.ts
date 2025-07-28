@@ -32,19 +32,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .replace(/\"/g, "&quot;")
         .replace(/'/g, "&apos;");
 
-    const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const escapeRegex = (s: string) =>
+      s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
     const replaceAcrossTags = (
       xml: string,
       target: string,
       replacement: string
-    ) => {
+    ): { xml: string; matched: boolean } => {
       const pattern = target
         .split("")
         .map((c) => `${escapeRegex(c)}(?:<\/a:t>\s*<a:t[^>]*>)?`)
         .join("");
-      return xml.replace(new RegExp(pattern, "g"), replacement);
+      const regex = new RegExp(pattern, "g");
+      const matched = regex.test(xml);
+      return { xml: xml.replace(regex, replacement), matched };
     };
+
+    const foundKeys = new Set<string>();
 
     for (const name of files) {
       const file = zip.file(name);
@@ -54,25 +59,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const placeholder = `<<[${key}]>>`;
         const encoded = placeholder.replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const escaped = xmlEscape(value);
-        content = replaceAcrossTags(content, placeholder, escaped);
-        content = replaceAcrossTags(content, encoded, escaped);
-        content = replaceAcrossTags(content, `'${placeholder}'`, escaped);
-        content = replaceAcrossTags(content, `'${encoded}'`, escaped);
+
+        let result = replaceAcrossTags(content, placeholder, escaped);
+        content = result.xml;
+        if (result.matched) foundKeys.add(key);
+
+        result = replaceAcrossTags(content, encoded, escaped);
+        content = result.xml;
+        if (result.matched) foundKeys.add(key);
+
+        result = replaceAcrossTags(content, `'${placeholder}'`, escaped);
+        content = result.xml;
+        if (result.matched) foundKeys.add(key);
+
+        result = replaceAcrossTags(content, `'${encoded}'`, escaped);
+        content = result.xml;
+        if (result.matched) foundKeys.add(key);
       }
       zip.file(name, content);
     }
 
-    const newBuffer = await zip.generateAsync({ type: "nodebuffer" });
+    const replacements: Record<string, string> = {};
+    for (const key of Array.from(foundKeys)) {
+      replacements[key] = values[key];
+    }
 
-    res.setHeader(
-      "Content-Disposition",
-      "attachment; filename=modified.pptx"
-    );
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-    );
-    res.send(newBuffer);
+    const newBuffer = await zip.generateAsync({ type: "nodebuffer" });
+    const file = newBuffer.toString("base64");
+    console.log("Replacements:", replacements);
+    res.setHeader("Content-Type", "application/json");
+    res.status(200).json({ file, replacements });
   } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: "Internal server error" });
