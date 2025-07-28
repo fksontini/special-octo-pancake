@@ -7,6 +7,7 @@ export default function Home() {
   const [populateStatus, setPopulateStatus] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [replacements, setReplacements] = useState<Record<string, string>>({});
 
   const handlePopulate = async () => {
     if (!file) {
@@ -31,7 +32,6 @@ export default function Home() {
         "/api/populate",
         { pptxBase64: base64, values },
         {
-          responseType: "blob",
           onUploadProgress: (event) => {
             if (event.total) {
               setUploadProgress(Math.round((event.loaded * 100) / event.total));
@@ -39,7 +39,15 @@ export default function Home() {
           },
         }
       );
-      const blob = new Blob([response.data], {
+      setReplacements(response.data.replacements || {});
+
+      const byteCharacters = atob(response.data.file);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], {
         type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
       });
       const url = window.URL.createObjectURL(blob);
@@ -94,6 +102,19 @@ export default function Home() {
             }}
           />
           <progress value={uploadProgress} max={100} style={{ width: "100%" }} />
+        </div>
+      )}
+
+      {Object.keys(replacements).length > 0 && (
+        <div style={{ marginTop: "1rem" }}>
+          <h3>Balises détectées</h3>
+          <ul>
+            {Object.entries(replacements).map(([k, v]) => (
+              <li key={k}>
+                {k}: {v}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
