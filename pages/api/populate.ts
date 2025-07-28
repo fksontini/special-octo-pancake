@@ -56,8 +56,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!file) continue;
       let content = await file.async("string");
       for (const [key, value] of Object.entries(values)) {
-        const placeholder = `<<[${key}]>>`;
-        const encoded = placeholder.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const placeholder = `{{${key}}}`;
+        const encoded = placeholder; // curly braces don't require XML encoding
         const escaped = xmlEscape(value);
 
         let result = replaceAcrossTags(content, placeholder, escaped);
