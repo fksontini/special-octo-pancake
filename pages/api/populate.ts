@@ -42,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ): { xml: string; matched: boolean } => {
       const pattern = target
         .split("")
-        .map((c) => `${escapeRegex(c)}(?:<\/a:t>\s*<a:t[^>]*>)?`)
+        .map((c) => `${escapeRegex(c)}(?:\\s*<[^>]+>\\s*)*`)
         .join("");
       const regex = new RegExp(pattern, "g");
       const matched = regex.test(xml);
