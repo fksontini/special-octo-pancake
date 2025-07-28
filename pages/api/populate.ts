@@ -46,6 +46,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .join("");
       const regex = new RegExp(pattern, "g");
       const matched = regex.test(xml);
+      if (!matched) return { xml, matched };
+      regex.lastIndex = 0;
       return { xml: xml.replace(regex, replacement), matched };
     };
 
